@@ -13,12 +13,14 @@ class HybridLM(nn.Module):
         d_model=128,
         n_head=4,
         window=64,
-        n_layer=7,
-        attn_layer=3,
+        layer_kinds=None,
         max_len=512,
         dropout=0.1,
     ):
         super().__init__()
+        if layer_kinds is None:
+            layer_kinds = ["ssm", "ssm", "ssm", "attn", "ssm", "ssm", "ssm"]
+        self.layer_kinds = layer_kinds
         self.vocab_size = vocab_size
         self.max_len = max_len
         self.d_model = d_model
@@ -28,8 +30,8 @@ class HybridLM(nn.Module):
         self.drop = nn.Dropout(dropout)
 
         layers = []
-        for i in range(n_layer):
-            if i == attn_layer:
+        for k in layer_kinds:
+            if k == "attn":
                 layers.append(AttentionBlock(d_model, n_head, window, dropout))
             else:
                 layers.append(MambaBlock(d_model, dropout=dropout))
@@ -38,27 +40,14 @@ class HybridLM(nn.Module):
         self.ln_f = nn.LayerNorm(d_model)
         self.head = nn.Linear(d_model, vocab_size, bias=False)
 
-        self._init_weights()
-
-    def _init_weights(self):
-        for name, p in self.named_parameters():
-            # 不动 A_log 和 D，它们在 MambaBlock.__init__ 里已经设好
-            if "A_log" in name or name.endswith(".D"):
-                continue
-            if p.dim() > 1:
-                nn.init.normal_(p, mean=0.0, std=0.02)
-
     def forward(self, x):
         B, L = x.shape
         assert L <= self.max_len
-
         pos = torch.arange(L, device=x.device)
         h = self.tok_emb(x) + self.pos_emb(pos)[None, :, :]
         h = self.drop(h)
-
         for layer in self.layers:
             h = layer(h)
-
         return self.head(self.ln_f(h))
 
     @torch.no_grad()

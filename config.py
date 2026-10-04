@@ -20,7 +20,7 @@ class ModelConfig:
 @dataclass
 class TrainConfig:
     batch_size: int = 32
-    half_len: int = 64
+    half_len: int = 32
     steps: int = 2000
     lr: float = 3e-4
     weight_decay: float = 0.01
