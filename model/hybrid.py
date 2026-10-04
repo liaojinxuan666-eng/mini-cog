@@ -1,4 +1,4 @@
-%%writefile /content/mini-cog/model/hybrid.py
+# model/hybrid.py
 import torch
 import torch.nn as nn
 
@@ -7,18 +7,6 @@ from .attention_block import AttentionBlock
 
 
 class HybridLM(nn.Module):
-    """
-    SSM + Attention 混合语言模型。
-
-    层序（默认 n_layer=7, attn_layer=3）：
-        SSM SSM SSM  Attention  SSM SSM SSM
-    第 4 层（0-indexed 3）放 Attention，其余放 SSM。
-
-    Mamba 负责流式、长程、递归状态；
-    Attention 负责局部窗口内的精确绑定；
-    两者叠加，既能流式也能精确检索。
-    """
-
     def __init__(
         self,
         vocab_size=64,
@@ -36,7 +24,6 @@ class HybridLM(nn.Module):
         self.d_model = d_model
 
         self.tok_emb = nn.Embedding(vocab_size, d_model)
-        # 位置嵌入只为给 SSM 一个位置提示；Attention 内部靠 RoPE
         self.pos_emb = nn.Embedding(max_len, d_model)
         self.drop = nn.Dropout(dropout)
 
@@ -59,9 +46,8 @@ class HybridLM(nn.Module):
                 nn.init.normal_(p, mean=0.0, std=0.02)
 
     def forward(self, x):
-        # x: [B, L] 整数 token
         B, L = x.shape
-        assert L <= self.max_len, f"序列长 {L} 超过 max_len {self.max_len}"
+        assert L <= self.max_len
 
         pos = torch.arange(L, device=x.device)
         h = self.tok_emb(x) + self.pos_emb(pos)[None, :, :]
@@ -70,14 +56,10 @@ class HybridLM(nn.Module):
         for layer in self.layers:
             h = layer(h)
 
-        return self.head(self.ln_f(h))   # [B, L, vocab_size]
+        return self.head(self.ln_f(h))
 
     @torch.no_grad()
     def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
-        """
-        自回归生成，仅用于验证推理。
-        idx: [B, T0] 起始 token
-        """
         self.eval()
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -self.max_len:]
