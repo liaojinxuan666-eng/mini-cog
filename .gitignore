@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+checkpoints/
+*.pt
+*.onnx
+*.mlpackage
+data/raw/
+.env
