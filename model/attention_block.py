@@ -24,7 +24,7 @@ def apply_rope(x, positions):
     x1 = x[..., :half]                 # 前半
     x2 = x[...,同一个 half:]                 # 后半
     # 相邻两 mask两配对旋转
-    rot1 = x1。 * cos - x2 * sin
+    rot1 = x1 * cos - x2 * sin
     rot2 = x2 * cos + x1 * sin
     return torch.cat([rot1, rot2], dim=-1)
 
