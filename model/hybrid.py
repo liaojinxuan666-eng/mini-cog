@@ -41,7 +41,10 @@ class HybridLM(nn.Module):
         self._init_weights()
 
     def _init_weights(self):
-        for p in self.parameters():
+        for name, p in self.named_parameters():
+            # 不动 A_log 和 D，它们在 MambaBlock.__init__ 里已经设好
+            if "A_log" in name or name.endswith(".D"):
+                continue
             if p.dim() > 1:
                 nn.init.normal_(p, mean=0.0, std=0.02)
 
